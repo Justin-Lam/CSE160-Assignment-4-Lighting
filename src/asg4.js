@@ -86,6 +86,8 @@ const map = [	// 32x32x4
 	*/
 ];
 
+let showNormals = false;
+
 let a_Position;
 let a_Normal;
 let a_UV;
@@ -101,6 +103,7 @@ function main() {
 	getGlobalVars();
 	setupWebGL();
 	initTextures();
+	initUI();
 
 	document.onmousemove = (e) => onMouseMove(e);
 	document.onmousedown = (e) => onMouseDown(e);
@@ -202,6 +205,10 @@ function sendToTexture1(image) {
 	gl.uniform1i(u_Sampler1, 1);												// Set the texture1 to the sampler
 }
 
+function initUI() {
+	document.getElementById("toggleNormalsButton").onclick = () => showNormals = !showNormals;
+}
+
 let prevCursorX;
 function onMouseMove(e) {
 	const x = e.clientX;
@@ -243,7 +250,7 @@ function initSky() {
 	const skyBlue = [135/255, 206/255, 235/255, 1];
 	sky = new Cube(0, skyBlue);
 	sky.modelMatrix.setIdentity();
-	sky.modelMatrix.scale(64, 64, 64);
+	sky.modelMatrix.scale(-64, -64, -64);	// flip cube inside out so normals align with the normals of objects within
 	sky.modelMatrix.translate(-0.5, -0.5, -0.5);
 }
 
@@ -294,6 +301,17 @@ function render() {
 	gl.uniformMatrix4fv(u_ProjectionMatrix, false, camera.projectionMatrix.elements);
 
 	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+	if (showNormals) {
+		sky.renderType = -2;
+		floor.renderType = -2;
+		for (const wall of walls) wall.renderType = -2;
+	}
+	else {
+		sky.renderType = 0;
+		floor.renderType = 1;
+		for (const wall of walls) wall.renderType = 2;
+	}
 
 	sky.render();
 	floor.render();
