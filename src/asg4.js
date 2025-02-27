@@ -1,28 +1,38 @@
 const VSHADER_SOURCE = `
 	precision mediump float;
+
 	attribute vec4 a_Position;
+	attribute vec3 a_Normal;
 	attribute vec2 a_UV;
+
+	varying vec3 v_Normal;
 	varying vec2 v_UV;
+
 	uniform mat4 u_ModelMatrix;
 	uniform mat4 u_ViewMatrix;
 	uniform mat4 u_ProjectionMatrix;
 
 	void main() {
 		gl_Position = u_ProjectionMatrix * u_ViewMatrix * u_ModelMatrix * a_Position;
+		v_Normal = a_Normal;
 		v_UV = a_UV;
 	}
 `;
 
 const FSHADER_SOURCE = `
 	precision mediump float;
+
+	varying vec3 v_Normal;
 	varying vec2 v_UV;
+
 	uniform int u_RenderType;
 	uniform vec4 u_FragColor;
 	uniform sampler2D u_Sampler0;
 	uniform sampler2D u_Sampler1;
 
 	void main() {
-		if 		(u_RenderType == -1) 	gl_FragColor = vec4(v_UV, 1, 1);				// use UV debug color
+		if (u_RenderType == -2)			gl_FragColor = vec4((v_Normal + 1.0)/2.0, 1.0);	// use normal for debugging
+		else if (u_RenderType == -1) 	gl_FragColor = vec4(v_UV, 1, 1);				// use UV for debugging
 		else if (u_RenderType == 0) 	gl_FragColor = u_FragColor;						// use color
 		else if (u_RenderType == 1) 	gl_FragColor = texture2D(u_Sampler0, v_UV);		// use TEXTURE0
 		else if (u_RenderType == 2) 	gl_FragColor = texture2D(u_Sampler1, v_UV);		// use TEXTURE1
@@ -77,6 +87,7 @@ const map = [	// 32x32x4
 ];
 
 let a_Position;
+let a_Normal;
 let a_UV;
 let u_ModelMatrix;
 let u_ViewMatrix;
@@ -114,7 +125,7 @@ function getGlobalVars() {
 	gl.enable(gl.DEPTH_TEST);
 
 	camera = new Camera();
-	const translation = new Vector3([0,1,8]);
+	const translation = new Vector3([0,1.5,8]);
 	camera.eye.add(translation);
 	camera.at.add(translation);
 }
@@ -125,6 +136,9 @@ function setupWebGL() {
 
 	a_Position = gl.getAttribLocation(gl.program, "a_Position");
 	if (a_Position < 0) throw new Error("Failed to get the storage location of a_Position.");
+
+	a_Normal = gl.getAttribLocation(gl.program, "a_Normal");
+	if (a_Normal < 0) throw new Error("Failed to get the storage location of a_Normal.");
 
 	a_UV = gl.getAttribLocation(gl.program, "a_UV");
 	if (a_UV < 0) throw new Error("Failed to get the storage location of a_UV.");

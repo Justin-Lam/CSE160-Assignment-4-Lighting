@@ -9,19 +9,22 @@ function initArrayBuffer() {
 
 	gl.bindBuffer(gl.ARRAY_BUFFER, arrayBuffer);
 
-	gl.vertexAttribPointer(a_Position, 3, gl.FLOAT, false, FSIZE*5, 0);
+	gl.vertexAttribPointer(a_Position, 3, gl.FLOAT, false, FSIZE*8, 0);
 	gl.enableVertexAttribArray(a_Position);
 
-	gl.vertexAttribPointer(a_UV, 2, gl.FLOAT, false, FSIZE*5, FSIZE*3);
+	gl.vertexAttribPointer(a_Normal, 3, gl.FLOAT, false, FSIZE*8, FSIZE*3);
+	gl.enableVertexAttribArray(a_Normal);
+
+	gl.vertexAttribPointer(a_UV, 2, gl.FLOAT, false, FSIZE*8, FSIZE*6);
 	gl.enableVertexAttribArray(a_UV);
 }
 
-/** @param {Float32Array} data vertex and uv data for the triangle(s) */
+/** @param {Float32Array} data vertex, normal, and uv data for the triangle(s) */
 function drawTriangles(data) {
 	if (!arrayBuffer) initArrayBuffer();
 
 	gl.bufferData(gl.ARRAY_BUFFER, data, gl.DYNAMIC_DRAW)
 
-	const numVertices = data.length/5;  // x, y, z, u, v = 5 components
+	const numVertices = data.length/8;  // x, y, z, Nx, Ny, Nz, u, v = 8 components
 	gl.drawArrays(gl.TRIANGLES, 0, numVertices);
 }
