@@ -1,6 +1,6 @@
 const FSIZE = Float32Array.BYTES_PER_ELEMENT;
 
-/** Contains vertex and uv data for 1+ triangles. */
+/** Contains vertex, normal, and uv data for 1+ triangles. */
 let arrayBuffer = null;
 
 function initArrayBuffer() {
@@ -19,12 +19,12 @@ function initArrayBuffer() {
 	gl.enableVertexAttribArray(a_UV);
 }
 
-/** @param {Float32Array} data vertex, normal, and uv data for the triangle(s) */
-function drawTriangles(data) {
+/** @param {Float32Array} vertexData vertex, normal, and uv for the triangle(s) */
+function drawTriangles(vertexData) {
 	if (!arrayBuffer) initArrayBuffer();
 
-	gl.bufferData(gl.ARRAY_BUFFER, data, gl.DYNAMIC_DRAW)
+	gl.bufferData(gl.ARRAY_BUFFER, vertexData, gl.DYNAMIC_DRAW)
 
-	const numVertices = data.length/8;  // x, y, z, Nx, Ny, Nz, u, v = 8 components
+	const numVertices = vertexData.length/8;  // x, y, z, Nx, Ny, Nz, u, v = 8 components
 	gl.drawArrays(gl.TRIANGLES, 0, numVertices);
 }

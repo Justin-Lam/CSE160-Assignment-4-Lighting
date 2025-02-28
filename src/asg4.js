@@ -115,6 +115,7 @@ function main() {
 	initFloor();
 	initWalls();
 	initKing();
+	initSphere();
 
 	requestAnimationFrame(tick);
 }
@@ -249,7 +250,6 @@ let sky;
 function initSky() {
 	const skyBlue = [135/255, 206/255, 235/255, 1];
 	sky = new Cube(0, skyBlue);
-	sky.modelMatrix.setIdentity();
 	sky.modelMatrix.scale(-64, -64, -64);	// flip cube inside out so normals align with the normals of objects within
 	sky.modelMatrix.translate(-0.5, -0.5, -0.5);
 }
@@ -257,7 +257,6 @@ function initSky() {
 let floor;
 function initFloor() {
 	floor = new Cube(1);
-	floor.modelMatrix.setIdentity();
 	floor.modelMatrix.scale(32, 0, 32);	// scale y to 0 makes a plane
 	floor.modelMatrix.translate(-0.5, -0.5, -0.5);
 }
@@ -274,7 +273,6 @@ function initWalls() {
 		const wallHeight = map[y][x];
 		for (h = 0; h < wallHeight; h++) {
 			const wall = new Cube(2);
-			wall.modelMatrix.setIdentity();
 			wall.modelMatrix.translate(x-16, h, y-16);
 			walls.push(wall);
 		}
@@ -287,6 +285,14 @@ function initKing() {
 	const modelMatrix = new Matrix4();
 	modelMatrix.translate(-1, 0, 2);
 	king = new King(modelMatrix);
+}
+
+let sphere;
+function initSphere() {
+	sphere = new Sphere(0);
+	sphere.modelMatrix.translate(0, 2, 4);
+	sphere.modelMatrix.translate(-0.5, -0.5, -0.5);
+	sphere.modelMatrix.scale(1, 1, 1);
 }
 
 function tick() {
@@ -306,17 +312,20 @@ function render() {
 		sky.renderType = -2;
 		floor.renderType = -2;
 		for (const wall of walls) wall.renderType = -2;
+		sphere.renderType = -2;
 	}
 	else {
 		sky.renderType = 0;
 		floor.renderType = 1;
 		for (const wall of walls) wall.renderType = 2;
+		sphere.renderType = 0;
 	}
 
 	sky.render();
 	floor.render();
 	for (const wall of walls) wall.render();
 	king.render();
+	sphere.render();
 }
 
 let start = performance.now();

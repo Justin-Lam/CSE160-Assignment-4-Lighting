@@ -1,6 +1,6 @@
 class Cube {
-	/** Vertex, normal, and uv data. */
-	data = new Float32Array([
+	/** Position, normal, and uv. */
+	vertexData = new Float32Array([
 		// front
 		0,0,0, 0,0,-1, 0,0,		1,1,0, 0,0,-1, 1,1,		1,0,0, 0,0,-1, 1,0,
 		0,0,0, 0,0,-1, 0,0,		0,1,0, 0,0,-1, 0,1,		1,1,0, 0,0,-1, 1,1,
@@ -27,7 +27,7 @@ class Cube {
 
 	/**
 	 * Required to specify renderType.
-	 * @param {number} renderType -1: debug, 0: color, 1: texture0, 2: texture1
+	 * @param {number} renderType -2: debug (normals), -1: debug (uv), 0: color, 1: texture0, 2: texture1
 	 */
 	constructor(renderType, color) {
 		this.renderType = renderType;
@@ -39,6 +39,6 @@ class Cube {
 		gl.uniform1i(u_RenderType, this.renderType);
 		gl.uniform4f(u_FragColor, ...this.color);
 
-		drawTriangles(this.data);
+		drawTriangles(this.vertexData);
 	}
 }
