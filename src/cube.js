@@ -22,6 +22,7 @@ class Cube {
 	]);
 
 	modelMatrix = new Matrix4();
+	normalMatrix = new Matrix4();
 	renderType;
 	color = [1,1,1,1];	// white
 
@@ -36,6 +37,7 @@ class Cube {
 
 	render() {
 		gl.uniformMatrix4fv(u_ModelMatrix, false, this.modelMatrix.elements);
+		gl.uniformMatrix4fv(u_NormalMatrix, false, this.normalMatrix.elements);
 		gl.uniform1i(u_RenderType, this.renderType);
 		gl.uniform4f(u_FragColor, ...this.color);
 

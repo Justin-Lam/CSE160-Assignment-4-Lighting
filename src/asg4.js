@@ -2,21 +2,22 @@ const VSHADER_SOURCE = `
 	precision mediump float;
 
 	attribute vec4 a_Position;
-	attribute vec3 a_Normal;
-	attribute vec2 a_UV;
-
-	varying vec3 v_VertPos;
-	varying vec3 v_Normal;
-	varying vec2 v_UV;
-
+	varying vec3 v_VertexPosition;
 	uniform mat4 u_ModelMatrix;
 	uniform mat4 u_ViewMatrix;
 	uniform mat4 u_ProjectionMatrix;
 
+	attribute vec4 a_Normal;
+	varying vec3 v_Normal;
+	uniform mat4 u_NormalMatrix;
+
+	attribute vec2 a_UV;
+	varying vec2 v_UV;
+
 	void main() {
-		gl_Position = u_ProjectionMatrix * u_ViewMatrix * u_ModelMatrix * a_Position;
-		v_VertPos = vec3(u_ModelMatrix * a_Position);
-		v_Normal = a_Normal;
+		gl_Position = u_ProjectionMatrix * u_ViewMatrix * u_ModelMatrix * a_Position;	// in screen space
+		v_VertexPosition = vec3(u_ModelMatrix * a_Position);							// in world space
+		v_Normal = normalize(vec3(u_NormalMatrix * a_Normal));
 		v_UV = a_UV;
 	}
 `;
@@ -24,18 +25,19 @@ const VSHADER_SOURCE = `
 const FSHADER_SOURCE = `
 	precision mediump float;
 
-	varying vec3 v_VertPos;
-	varying vec3 v_Normal;
-	varying vec2 v_UV;
-
 	uniform int u_RenderType;
+
 	uniform vec4 u_FragColor;
+	
+	varying vec2 v_UV;
 	uniform sampler2D u_Sampler0;
 	uniform sampler2D u_Sampler1;
 
 	uniform bool u_LightingEnabled;
-	uniform vec3 u_LightPos;
-	uniform vec3 u_CameraPos;
+	varying vec3 v_VertexPosition;
+	varying vec3 v_Normal;
+	uniform vec3 u_LightPosition;
+	uniform vec3 u_CameraPosition;
 
 	void main() {
 		if (u_RenderType == -2)			gl_FragColor = vec4((v_Normal + 1.0)/2.0, 1.0);	// use normal for debugging
@@ -47,11 +49,11 @@ const FSHADER_SOURCE = `
 
 		if (!u_LightingEnabled) return;
 		
-		vec3 l = normalize(u_LightPos - v_VertPos);
+		vec3 l = normalize(u_LightPosition - v_VertexPosition);
 		vec3 n = normalize(v_Normal);
 		float nDotL = max(dot(n, l), 0.0);
 
-		vec3 e = normalize(u_CameraPos - v_VertPos);
+		vec3 e = normalize(u_CameraPosition - v_VertexPosition);
 		vec3 r = reflect(-l, n);	// l needs to be negative because of how the function works
 		float p = 10.0;
 
@@ -118,19 +120,25 @@ let lightingEnabled = true;
 let lightPos = [0, 1, -2];
 
 let a_Position;
-let a_Normal;
-let a_UV;
 let u_ModelMatrix;
 let u_ViewMatrix;
 let u_ProjectionMatrix;
-let u_LightPos;
-let u_CameraPos;
+
+let a_Normal;
+let u_NormalMatrix;
+
+let a_UV;
 
 let u_RenderType;
+
 let u_FragColor;
+
 let u_Sampler0;
+let u_Sampler1;
 
 let u_LightingEnabled;
+let u_LightPosition;
+let u_CameraPosition;
 
 function main() {
 	getGlobalVars();
@@ -190,11 +198,11 @@ function setupWebGL() {
 	u_ProjectionMatrix = gl.getUniformLocation(gl.program, "u_ProjectionMatrix");
 	if (!u_ProjectionMatrix) throw new Error("Failed to get the storage location of u_ProjectionMatrix.");
 
-	u_LightPos = gl.getUniformLocation(gl.program, "u_LightPos");
-	if (!u_LightPos) throw new Error("Failed to get the storage location of u_LightPos.");
+	u_LightPosition = gl.getUniformLocation(gl.program, "u_LightPosition");
+	if (!u_LightPosition) throw new Error("Failed to get the storage location of u_LightPosition.");
 
-	u_CameraPos = gl.getUniformLocation(gl.program, "u_CameraPos");
-	if (!u_CameraPos) throw new Error("Failed to get the storage location of u_CameraPos.");
+	u_CameraPosition = gl.getUniformLocation(gl.program, "u_CameraPosition");
+	if (!u_CameraPosition) throw new Error("Failed to get the storage location of u_CameraPosition.");
 
 	u_RenderType = gl.getUniformLocation(gl.program, "u_RenderType");
 	if (!u_RenderType) throw new Error("Failed to get the storage location of u_RenderType.");
@@ -210,6 +218,9 @@ function setupWebGL() {
 
 	u_LightingEnabled = gl.getUniformLocation(gl.program, "u_LightingEnabled");
 	if (!u_LightingEnabled) throw new Error("Failed to get the storage location of u_LightingEnabled.");
+
+	u_NormalMatrix = gl.getUniformLocation(gl.program, "u_NormalMatrix");
+	if (!u_NormalMatrix) throw new Error("Failed to get the storage location of u_NormalMatrix.");
 }
 
 function initTextures() {
@@ -305,6 +316,7 @@ function initSky() {
 	sky = new Cube(0, skyBlue);
 	sky.modelMatrix.scale(-64, -64, -64);	// flip cube inside out so normals align with the normals of objects within
 	sky.modelMatrix.translate(-0.5, -0.5, -0.5);
+	sky.normalMatrix.setInverseOf(sky.modelMatrix).transpose();
 }
 
 let floor;
@@ -367,8 +379,8 @@ function render() {
 	gl.uniformMatrix4fv(u_ProjectionMatrix, false, camera.projectionMatrix.elements);
 
 	gl.uniform1i(u_LightingEnabled, lightingEnabled);
-	gl.uniform3f(u_LightPos, ...lightPos);
-	gl.uniform3f(u_CameraPos, ...camera.eye.elements);
+	gl.uniform3f(u_LightPosition, ...lightPos);
+	gl.uniform3f(u_CameraPosition, ...camera.eye.elements);
 
 	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
