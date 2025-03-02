@@ -320,10 +320,16 @@ function initSphere() {
 }
 
 function tick() {
-	console.log(lightPos);
+	animateLight();
 	render();
 	updateFPSCounter();
 	requestAnimationFrame(tick);
+}
+
+const progStart = performance.now();
+function animateLight() {
+	const dt = (performance.now() - progStart)/1000;
+	lightPos[0] = Math.cos(dt);	// start declared below
 }
 
 /** Renders the sky, floor, and map. */
