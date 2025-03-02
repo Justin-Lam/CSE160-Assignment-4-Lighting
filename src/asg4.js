@@ -5,6 +5,7 @@ const VSHADER_SOURCE = `
 	attribute vec3 a_Normal;
 	attribute vec2 a_UV;
 
+	varying vec4 v_VertPos;
 	varying vec3 v_Normal;
 	varying vec2 v_UV;
 
@@ -14,6 +15,7 @@ const VSHADER_SOURCE = `
 
 	void main() {
 		gl_Position = u_ProjectionMatrix * u_ViewMatrix * u_ModelMatrix * a_Position;
+		v_VertPos = u_ModelMatrix * a_Position;
 		v_Normal = a_Normal;
 		v_UV = a_UV;
 	}
@@ -22,9 +24,11 @@ const VSHADER_SOURCE = `
 const FSHADER_SOURCE = `
 	precision mediump float;
 
+	varying vec4 v_VertPos;
 	varying vec3 v_Normal;
 	varying vec2 v_UV;
 
+	uniform vec3 u_LightPos;
 	uniform int u_RenderType;
 	uniform vec4 u_FragColor;
 	uniform sampler2D u_Sampler0;
@@ -37,6 +41,11 @@ const FSHADER_SOURCE = `
 		else if (u_RenderType == 1) 	gl_FragColor = texture2D(u_Sampler0, v_UV);		// use TEXTURE0
 		else if (u_RenderType == 2) 	gl_FragColor = texture2D(u_Sampler1, v_UV);		// use TEXTURE1
 		else 							gl_FragColor = vec4(1, 0.2, 0.2, 1);			// error, make red
+
+		vec3 lightVec = u_LightPos - vec3(v_VertPos);
+		float r = length(lightVec);
+		if (r < 1.0) gl_FragColor = vec4(1,0,0,1);
+		else if (r < 2.0) gl_FragColor = vec4(0,1,0,1);
 	}
 `;
 
@@ -87,6 +96,7 @@ const map = [	// 32x32x4
 ];
 
 let showNormals = false;
+let lightPos = [0, 1, -2];
 
 let a_Position;
 let a_Normal;
@@ -94,6 +104,7 @@ let a_UV;
 let u_ModelMatrix;
 let u_ViewMatrix;
 let u_ProjectionMatrix;
+let u_LightPos;
 
 let u_RenderType;
 let u_FragColor;
@@ -105,8 +116,8 @@ function main() {
 	initTextures();
 	initUI();
 
-	document.onmousemove = (e) => onMouseMove(e);
-	document.onmousedown = (e) => onMouseDown(e);
+	//document.onmousemove = (e) => onMouseMove(e);
+	//document.onmousedown = (e) => onMouseDown(e);
 	document.onkeydown = (e) => onKeydown(e);
 
 	gl.clearColor(0,0,0,1);	// black
@@ -156,6 +167,9 @@ function setupWebGL() {
 
 	u_ProjectionMatrix = gl.getUniformLocation(gl.program, "u_ProjectionMatrix");
 	if (!u_ProjectionMatrix) throw new Error("Failed to get the storage location of u_ProjectionMatrix.");
+
+	u_LightPos = gl.getUniformLocation(gl.program, "u_LightPos");
+	if (!u_LightPos) throw new Error("Failed to get the storage location of u_LightPos.");
 
 	u_RenderType = gl.getUniformLocation(gl.program, "u_RenderType");
 	if (!u_RenderType) throw new Error("Failed to get the storage location of u_RenderType.");
@@ -208,6 +222,16 @@ function sendToTexture1(image) {
 
 function initUI() {
 	document.getElementById("toggleNormalsButton").onclick = () => showNormals = !showNormals;
+
+	document.getElementById("lightPos_X").addEventListener("mousemove", function(e) {
+		if (e.buttons === 1) lightPos[0] = this.value;
+	});
+	document.getElementById("lightPos_Y").addEventListener("mousemove", function(e) {
+		if (e.buttons === 1) lightPos[1] = this.value;
+	});
+	document.getElementById("lightPos_Z").addEventListener("mousemove", function(e) {
+		if (e.buttons === 1) lightPos[2] = this.value;
+	});
 }
 
 let prevCursorX;
@@ -296,6 +320,7 @@ function initSphere() {
 }
 
 function tick() {
+	console.log(lightPos);
 	render();
 	updateFPSCounter();
 	requestAnimationFrame(tick);
@@ -306,7 +331,15 @@ function render() {
 	gl.uniformMatrix4fv(u_ViewMatrix, false, camera.viewMatrix.elements);
 	gl.uniformMatrix4fv(u_ProjectionMatrix, false, camera.projectionMatrix.elements);
 
+	gl.uniform3f(u_LightPos, ...lightPos);
+
 	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+	const light = new Cube(0, [1,1,0,1]);
+	light.modelMatrix.translate(...lightPos);
+	light.modelMatrix.scale(0.1, 0.1, 0.1);
+	light.modelMatrix.translate(-0.5, -0.5, -0.5);
+	light.render();
 
 	if (showNormals) {
 		sky.renderType = -2;
