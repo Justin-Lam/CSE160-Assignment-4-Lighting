@@ -23,23 +23,23 @@ class Cube {
 
 	modelMatrix = new Matrix4();
 	normalMatrix = new Matrix4();
-	renderType;
+	material;
 	color = [1,1,1,1];	// white
 
 	/**
-	 * Required to specify renderType.
-	 * @param {number} renderType -2: debug (normals), -1: debug (uv), 0: color, 1: texture0, 2: texture1
+	 * Required to specify material.
+	 * @param {number} material -2: debug (normals), -1: debug (uv), 0: color, 1: texture0, 2: texture1
 	 */
-	constructor(renderType, color) {
-		this.renderType = renderType;
+	constructor(material, color) {
+		this.material = material;
 		if (color) this.color = color;
 	}
 
 	render() {
 		gl.uniformMatrix4fv(u_ModelMatrix, false, this.modelMatrix.elements);
 		gl.uniformMatrix4fv(u_NormalMatrix, false, this.normalMatrix.elements);
-		gl.uniform1i(u_RenderType, this.renderType);
-		gl.uniform4f(u_FragColor, ...this.color);
+		gl.uniform1i(u_Material, this.material);
+		gl.uniform4f(u_Color, ...this.color);
 
 		drawTriangles(this.vertexData);
 	}

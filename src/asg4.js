@@ -2,67 +2,74 @@ const VSHADER_SOURCE = `
 	precision mediump float;
 
 	attribute vec4 a_Position;
-	varying vec3 v_VertexPosition;
+	varying vec3 v_Position;	// vertex position in vertex shader, fragment position in fragment shader
 	uniform mat4 u_ModelMatrix;
 	uniform mat4 u_ViewMatrix;
 	uniform mat4 u_ProjectionMatrix;
 
-	attribute vec4 a_Normal;
-	varying vec3 v_Normal;
-	uniform mat4 u_NormalMatrix;
-
-	attribute vec2 a_UV;
 	varying vec2 v_UV;
+	attribute vec2 a_UV;
+
+	varying vec3 v_Normal;		// vertex normal in vertex shader, fragment normal in fragment shader
+	attribute vec4 a_Normal;
+	uniform mat4 u_NormalMatrix;
 
 	void main() {
 		gl_Position = u_ProjectionMatrix * u_ViewMatrix * u_ModelMatrix * a_Position;	// in screen space
-		v_VertexPosition = vec3(u_ModelMatrix * a_Position);							// in world space
-		v_Normal = normalize(vec3(u_NormalMatrix * a_Normal));
 		v_UV = a_UV;
+		v_Position = vec3(u_ModelMatrix * a_Position);									// in world space
+		v_Normal = normalize(vec3(u_NormalMatrix * a_Normal));
 	}
 `;
 
 const FSHADER_SOURCE = `
 	precision mediump float;
 
-	uniform int u_RenderType;
+	uniform int u_Material;
 
-	uniform vec4 u_FragColor;
+	uniform vec4 u_Color;
 	
 	varying vec2 v_UV;
 	uniform sampler2D u_Sampler0;
 	uniform sampler2D u_Sampler1;
 
 	uniform bool u_LightingEnabled;
-	varying vec3 v_VertexPosition;
-	varying vec3 v_Normal;
+	varying vec3 v_Position;		// vertex position in vertex shader, fragment position in fragment shader
+	varying vec3 v_Normal;			// vertex normal in vertex shader, fragment normal in fragment shader
 	uniform vec3 u_LightPosition;
 	uniform vec3 u_CameraPosition;
 
+	void renderMaterial();
+	void applyLighting();
+
 	void main() {
-		if (u_RenderType == -2)			gl_FragColor = vec4((v_Normal + 1.0)/2.0, 1.0);	// use normal for debugging
-		else if (u_RenderType == -1) 	gl_FragColor = vec4(v_UV, 1, 1);				// use UV for debugging
-		else if (u_RenderType == 0) 	gl_FragColor = u_FragColor;						// use color
-		else if (u_RenderType == 1) 	gl_FragColor = texture2D(u_Sampler0, v_UV);		// use TEXTURE0
-		else if (u_RenderType == 2) 	gl_FragColor = texture2D(u_Sampler1, v_UV);		// use TEXTURE1
-		else 							gl_FragColor = vec4(1, 0.2, 0.2, 1);			// error, make red
+		renderMaterial();
+		if (u_LightingEnabled) applyLighting();
+	}
 
-		if (!u_LightingEnabled) return;
-		
-		vec3 l = normalize(u_LightPosition - v_VertexPosition);
+	void renderMaterial() {
+		if (u_Material == -2)		gl_FragColor = vec4((v_Normal + 1.0)/2.0, 1.0);	// use normal for debugging
+		else if (u_Material == -1) 	gl_FragColor = vec4(v_UV, 1, 1);				// use UV for debugging
+		else if (u_Material == 0) 	gl_FragColor = u_Color;							// use color
+		else if (u_Material == 1) 	gl_FragColor = texture2D(u_Sampler0, v_UV);		// use TEXTURE0
+		else if (u_Material == 2) 	gl_FragColor = texture2D(u_Sampler1, v_UV);		// use TEXTURE1
+		else 						gl_FragColor = vec4(1, 0.2, 0.2, 1);			// error, make red	
+	}
+
+	void applyLighting() {
+		vec3 l = normalize(u_LightPosition - v_Position);
 		vec3 n = normalize(v_Normal);
-		float nDotL = max(dot(n, l), 0.0);
+		float nDotL = max(0.0, dot(n, l));
 
-		vec3 e = normalize(u_CameraPosition - v_VertexPosition);
+		vec3 e = normalize(u_CameraPosition - v_Position);
 		vec3 r = reflect(-l, n);	// l needs to be negative because of how the function works
-		float p = 10.0;
+		float c = 100.0;
 
-		float d = 0.35;
-		float s = 0.35;
+		float s = 0.3;
 		float a = 0.3;
 
-		vec3 diffuse = vec3(gl_FragColor) * nDotL * d;
-		float specular = pow(max(dot(e, r), 0.0), p) * s;
+		vec3 diffuse = vec3(gl_FragColor) * nDotL;
+		float specular = pow(max(dot(e, r), 0.0), c) * s;
 		vec3 ambient = vec3(gl_FragColor) * a;
 		
 		gl_FragColor = vec4(diffuse + specular + ambient, 1.0);
@@ -129,9 +136,9 @@ let u_NormalMatrix;
 
 let a_UV;
 
-let u_RenderType;
+let u_Material;
 
-let u_FragColor;
+let u_Color;
 
 let u_Sampler0;
 let u_Sampler1;
@@ -204,11 +211,11 @@ function setupWebGL() {
 	u_CameraPosition = gl.getUniformLocation(gl.program, "u_CameraPosition");
 	if (!u_CameraPosition) throw new Error("Failed to get the storage location of u_CameraPosition.");
 
-	u_RenderType = gl.getUniformLocation(gl.program, "u_RenderType");
-	if (!u_RenderType) throw new Error("Failed to get the storage location of u_RenderType.");
+	u_Material = gl.getUniformLocation(gl.program, "u_Material");
+	if (!u_Material) throw new Error("Failed to get the storage location of u_Material.");
 
-	u_FragColor = gl.getUniformLocation(gl.program, "u_FragColor");
-	if (!u_FragColor) throw new Error("Failed to get the storage location of u_FragColor.");
+	u_Color = gl.getUniformLocation(gl.program, "u_Color");
+	if (!u_Color) throw new Error("Failed to get the storage location of u_Color.");
 
 	u_Sampler0 = gl.getUniformLocation(gl.program, "u_Sampler0");
 	if (!u_Sampler0) throw new Error("Failed to get the storage location of u_Sampler0.");
