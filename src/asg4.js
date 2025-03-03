@@ -350,16 +350,18 @@ function render() {
 	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
 	if (showNormals) {
-		sky.renderType = -2;
-		floor.renderType = -2;
-		for (const wall of walls) wall.renderType = -2;
-		sphere.renderType = -2;
+		sky.material = -2;
+		floor.material = -2;
+		for (const wall of walls) wall.material = -2;
+		sphere.material = -2;
+		for (const bp of king.getBodyParts()) bp.material = -2;
 	}
 	else {
-		sky.renderType = 0;
-		floor.renderType = 1;
-		for (const wall of walls) wall.renderType = 2;
-		sphere.renderType = 0;
+		sky.material = 0;
+		floor.material = 1;
+		for (const wall of walls) wall.material = 2;
+		sphere.material = 0;
+		for (const bp of king.getBodyParts()) bp.material = 0;
 	}
 
 	const light = new Cube(0, [1,1,0,1]);

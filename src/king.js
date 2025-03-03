@@ -160,6 +160,33 @@ class King {
 		this.crown_m_r_corner.modelMatrix.translate(-0.5, -0.5, -0.5);
 		this.crown_back_r_corner.normalMatrix.setInverseOf(this.crown_back_r_corner.modelMatrix).transpose();
 	}
+
+	getBodyParts() {
+		return [
+			this.torso,
+			this.leg_l,
+			this.leg_r,
+			this.sleeve_l,
+			this.sleeve_r,
+			this.arm_l,
+			this.arm_r,
+			this.head,
+			this.eye_l,
+			this.eye_r,
+			this.mouth_bottom,
+			this.mouth_l,
+			this.mouth_r,
+			this.crown_bottom,
+			this.crown_front_l_corner,
+			this.crown_front_r_corner,
+			this.crown_front_m_corner,
+			this.crown_m_l_corner,
+			this.crown_back_l_corner,
+			this.crown_back_m_corner,
+			this.crown_back_r_corner,
+			this.crown_m_r_corner
+		];
+	}
 	
 	render() {
 		this.torso.render();
