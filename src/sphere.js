@@ -3,6 +3,7 @@ class Sphere {
 	vertexData;
 
 	modelMatrix = new Matrix4();
+	normalMatrix = new Matrix4();
 	material;
 	color = [1,1,1,1];	// white
 
@@ -56,6 +57,7 @@ class Sphere {
 
 	render() {
 		gl.uniformMatrix4fv(u_ModelMatrix, false, this.modelMatrix.elements);
+		gl.uniformMatrix4fv(u_NormalMatrix, false, this.normalMatrix.elements);
 		gl.uniform1i(u_Material, this.material);
 		gl.uniform4f(u_Color, ...this.color);
 
