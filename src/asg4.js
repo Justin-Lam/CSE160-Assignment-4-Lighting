@@ -33,19 +33,28 @@ const FSHADER_SOURCE = `
 	uniform sampler2D u_Sampler0;
 	uniform sampler2D u_Sampler1;
 
-	uniform bool u_LightingEnabled;
 	varying vec3 v_Position;		// vertex position in vertex shader, fragment position in fragment shader
 	varying vec3 v_Normal;			// vertex normal in vertex shader, fragment normal in fragment shader
-	uniform vec3 u_LightPosition;
-	uniform vec3 u_LightColor;
 	uniform vec3 u_CameraPosition;
 
+	uniform bool u_PointLight_Enabled;
+	uniform vec3 u_PointLight_Color;
+	uniform vec3 u_PointLight_Position;
+
+	uniform bool u_SpotLight_Enabled;
+	uniform vec3 u_SpotLight_Color;
+	uniform vec3 u_SpotLight_Position;
+	uniform vec3 u_SpotLight_Direction;
+	uniform float u_SpotLight_CosineCutoff;
+
 	void renderMaterial();
-	void applyLighting();
+	void applyPointLightLighting();
+	void applySpotLightLighting();
 
 	void main() {
 		renderMaterial();
-		if (u_LightingEnabled) applyLighting();
+		if (u_PointLight_Enabled) applyPointLightLighting();
+		if (u_SpotLight_Enabled) applySpotLightLighting();
 	}
 
 	void renderMaterial() {
@@ -57,8 +66,8 @@ const FSHADER_SOURCE = `
 		else 						gl_FragColor = vec4(1, 0.2, 0.2, 1);			// error, make red	
 	}
 
-	void applyLighting() {
-		vec3 l = normalize(u_LightPosition - v_Position);
+	void applyPointLightLighting() {
+		vec3 l = normalize(u_PointLight_Position - v_Position);
 		vec3 n = normalize(v_Normal);
 		float nDotL = max(0.0, dot(n, l));
 
@@ -69,11 +78,21 @@ const FSHADER_SOURCE = `
 		float s = 0.3;
 		float a = 0.3;
 
-		vec3 diffuse = vec3(gl_FragColor) * u_LightColor * nDotL;
-		vec3 specular = u_LightColor * s * pow(max(dot(e, r), 0.0), p);
+		vec3 diffuse = vec3(gl_FragColor) * u_PointLight_Color * nDotL;
+		vec3 specular = u_PointLight_Color * s * pow(max(dot(e, r), 0.0), p);
 		vec3 ambient = vec3(gl_FragColor) * a;
 		
 		gl_FragColor = vec4(diffuse + specular + ambient, 1.0);
+	}
+
+	void applySpotLightLighting() {
+		vec3 l = normalize(u_SpotLight_Position - v_Position);
+		vec3 d = -normalize(u_SpotLight_Direction);
+		float spotCosine = dot(d, l);
+
+		if (spotCosine < u_SpotLight_CosineCutoff) return;
+
+		gl_FragColor += vec4(u_SpotLight_Color * spotCosine, 1.0);
 	}
 `;
 
@@ -81,10 +100,17 @@ let canvas;
 let gl;
 let camera;
 
+let pointLight_Enabled = true;
+let pointLight_Color = [1,1,1];
+let pointLight_Position = [0, 8, -2];
+
+let spotLight_Enabled = true;
+let spotLight_Color = [0.1,0.1,0.05];
+let spotLight_Position = [5, 2, 8];
+let spotLight_Direction = [-1, 0, -1];
+let spotLight_CosineCutoff = 0.99;
+
 let showNormals = false;
-let lightingEnabled = true;
-let lightPos = [0, 8, -2];
-let lightColor = [1,1,1];
 
 let a_Position;
 let u_ModelMatrix;
@@ -103,10 +129,17 @@ let u_Color;
 let u_Sampler0;
 let u_Sampler1;
 
-let u_LightingEnabled;
-let u_LightPosition;
-let u_LightColor;
 let u_CameraPosition;
+
+let u_PointLight_Enabled;
+let u_PointLight_Position;
+let u_PointLight_Color;
+
+let u_SpotLight_Enabled;
+let u_SpotLight_Color;
+let u_SpotLight_Position;
+let u_SpotLight_Direction;
+let u_SpotLight_CosineCutoff;
 
 function main() {
 	getGlobalVars();
@@ -186,17 +219,34 @@ function setupWebGL() {
 	if (!u_Sampler1) throw new Error("Failed to get the storage location of u_Sampler1.");
 
 
-	u_LightingEnabled = gl.getUniformLocation(gl.program, "u_LightingEnabled");
-	if (!u_LightingEnabled) throw new Error("Failed to get the storage location of u_LightingEnabled.");
-
-	u_LightPosition = gl.getUniformLocation(gl.program, "u_LightPosition");
-	if (!u_LightPosition) throw new Error("Failed to get the storage location of u_LightPosition.");
-
-	u_LightColor = gl.getUniformLocation(gl.program, "u_LightColor");
-	if (!u_LightColor) throw new Error("Failed to get the storage location of u_LightColor.");
-
 	u_CameraPosition = gl.getUniformLocation(gl.program, "u_CameraPosition");
 	if (!u_CameraPosition) throw new Error("Failed to get the storage location of u_CameraPosition.");
+
+
+	u_PointLight_Enabled = gl.getUniformLocation(gl.program, "u_PointLight_Enabled");
+	if (!u_PointLight_Enabled) throw new Error("Failed to get the storage location of u_PointLight_Enabled.");
+
+	u_PointLight_Position = gl.getUniformLocation(gl.program, "u_PointLight_Position");
+	if (!u_PointLight_Position) throw new Error("Failed to get the storage location of u_PointLight_Position.");
+
+	u_PointLight_Color = gl.getUniformLocation(gl.program, "u_PointLight_Color");
+	if (!u_PointLight_Color) throw new Error("Failed to get the storage location of u_PointLight_Color.");
+
+	
+	u_SpotLight_Enabled = gl.getUniformLocation(gl.program, "u_SpotLight_Enabled");
+	if (!u_SpotLight_Enabled) throw new Error("Failed to get the storage location of u_SpotLight_Enabled.");
+
+	u_SpotLight_Color = gl.getUniformLocation(gl.program, "u_SpotLight_Color");
+	if (!u_SpotLight_Color) throw new Error("Failed to get the storage location of u_SpotLight_Color.");
+
+	u_SpotLight_Position = gl.getUniformLocation(gl.program, "u_SpotLight_Position");
+	if (!u_SpotLight_Position) throw new Error("Failed to get the storage location of u_SpotLight_Position.");
+
+	u_SpotLight_Direction = gl.getUniformLocation(gl.program, "u_SpotLight_Direction");
+	if (!u_SpotLight_Direction) throw new Error("Failed to get the storage location of u_SpotLight_Direction.");
+
+	u_SpotLight_CosineCutoff = gl.getUniformLocation(gl.program, "u_SpotLight_CosineCutoff");
+	if (!u_SpotLight_CosineCutoff) throw new Error("Failed to get the storage location of u_SpotLight_CosineCutoff.");
 }
 
 function initTextures() {
@@ -236,24 +286,25 @@ function sendToTexture1(image) {
 }
 
 function initUI() {
+	document.getElementById("togglePointLightButton").onclick = () => pointLight_Enabled = !pointLight_Enabled;
+	document.getElementById("toggleSpotLightButton").onclick = () => spotLight_Enabled = !spotLight_Enabled;
 	document.getElementById("toggleNormalsButton").onclick = () => showNormals = !showNormals;
-	document.getElementById("toggleLightingButton").onclick = () => lightingEnabled = !lightingEnabled;
 
 	document.getElementById("lightPos_Y").addEventListener("mousemove", function(e) {
-		if (e.buttons === 1) lightPos[1] = this.value;
+		if (e.buttons === 1) pointLight_Position[1] = this.value;
 	});
 	document.getElementById("lightPos_Z").addEventListener("mousemove", function(e) {
-		if (e.buttons === 1) lightPos[2] = this.value;
+		if (e.buttons === 1) pointLight_Position[2] = this.value;
 	});
 
 	document.getElementById("lightColor_R").addEventListener("mousemove", function(e) {
-		if (e.buttons === 1) lightColor[0] = this.value/100;
+		if (e.buttons === 1) pointLight_Color[0] = this.value/100;
 	});
 	document.getElementById("lightColor_G").addEventListener("mousemove", function(e) {
-		if (e.buttons === 1) lightColor[1] = this.value/100;
+		if (e.buttons === 1) pointLight_Color[1] = this.value/100;
 	});
 	document.getElementById("lightColor_B").addEventListener("mousemove", function(e) {
-		if (e.buttons === 1) lightColor[2] = this.value/100;
+		if (e.buttons === 1) pointLight_Color[2] = this.value/100;
 	});
 }
 
@@ -356,7 +407,7 @@ function tick() {
 const progStart = performance.now();
 function animateLight() {
 	const dt = (performance.now() - progStart)/1000;
-	lightPos[0] = Math.cos(dt) * 10;
+	pointLight_Position[0] = Math.cos(dt) * 10;
 }
 
 /** Renders the sky, floor, and map. */
@@ -364,10 +415,17 @@ function render() {
 	gl.uniformMatrix4fv(u_ViewMatrix, false, camera.viewMatrix.elements);
 	gl.uniformMatrix4fv(u_ProjectionMatrix, false, camera.projectionMatrix.elements);
 
-	gl.uniform1i(u_LightingEnabled, lightingEnabled);
-	gl.uniform3f(u_LightPosition, ...lightPos);
-	gl.uniform3f(u_LightColor, ...lightColor);
 	gl.uniform3f(u_CameraPosition, ...camera.eye.elements);
+
+	gl.uniform1i(u_PointLight_Enabled, pointLight_Enabled);
+	gl.uniform3f(u_PointLight_Color, ...pointLight_Color);
+	gl.uniform3f(u_PointLight_Position, ...pointLight_Position);
+
+	gl.uniform1i(u_SpotLight_Enabled, spotLight_Enabled);
+	gl.uniform3f(u_SpotLight_Color, ...spotLight_Color);
+	gl.uniform3f(u_SpotLight_Position, ...spotLight_Position);
+	gl.uniform3f(u_SpotLight_Direction, ...spotLight_Direction);
+	gl.uniform1f(u_SpotLight_CosineCutoff, spotLight_CosineCutoff);
 
 	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
@@ -386,11 +444,17 @@ function render() {
 		for (const bp of king.getBodyParts()) bp.material = 0;
 	}
 
-	const light = new Cube(0, [...lightColor, 1]);
-	light.modelMatrix.translate(...lightPos);
-	light.modelMatrix.scale(-0.5, -0.5, -0.5);	// flip inside out so light inside illuminates the outside instead of inside faces
-	light.modelMatrix.translate(-0.5, -0.5, -0.5);
-	light.render();
+	const pointLightCube = new Cube(0, [...pointLight_Color, 1]);
+	pointLightCube.modelMatrix.translate(...pointLight_Position);
+	pointLightCube.modelMatrix.scale(-0.5, -0.5, -0.5);	// flip inside out so light inside illuminates the outside instead of inside faces
+	pointLightCube.modelMatrix.translate(-0.5, -0.5, -0.5);
+	pointLightCube.render();
+
+	const spotLightCube = new Cube(0, [1,1,0,1]);
+	spotLightCube.modelMatrix.translate(...spotLight_Position);
+	spotLightCube.modelMatrix.scale(-0.5, -0.5, -0.5);	// flip inside out so light inside illuminates the outside instead of inside faces
+	spotLightCube.modelMatrix.translate(-0.5, -0.5, -0.5);
+	spotLightCube.render();
 
 	sky.render();
 	floor.render();
