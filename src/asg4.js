@@ -37,6 +37,7 @@ const FSHADER_SOURCE = `
 	varying vec3 v_Position;		// vertex position in vertex shader, fragment position in fragment shader
 	varying vec3 v_Normal;			// vertex normal in vertex shader, fragment normal in fragment shader
 	uniform vec3 u_LightPosition;
+	uniform vec3 u_LightColor;
 	uniform vec3 u_CameraPosition;
 
 	void renderMaterial();
@@ -63,13 +64,13 @@ const FSHADER_SOURCE = `
 
 		vec3 e = normalize(u_CameraPosition - v_Position);
 		vec3 r = reflect(-l, n);	// l needs to be negative because of how the function works
-		float c = 100.0;
+		float p = 100.0;
 
 		float s = 0.3;
 		float a = 0.3;
 
-		vec3 diffuse = vec3(gl_FragColor) * nDotL;
-		float specular = pow(max(dot(e, r), 0.0), c) * s;
+		vec3 diffuse = vec3(gl_FragColor) * u_LightColor * nDotL;
+		vec3 specular = u_LightColor * s * pow(max(dot(e, r), 0.0), p);
 		vec3 ambient = vec3(gl_FragColor) * a;
 		
 		gl_FragColor = vec4(diffuse + specular + ambient, 1.0);
@@ -83,6 +84,7 @@ let camera;
 let showNormals = false;
 let lightingEnabled = true;
 let lightPos = [0, 8, -2];
+let lightColor = [1,1,1];
 
 let a_Position;
 let u_ModelMatrix;
@@ -103,6 +105,7 @@ let u_Sampler1;
 
 let u_LightingEnabled;
 let u_LightPosition;
+let u_LightColor;
 let u_CameraPosition;
 
 function main() {
@@ -147,15 +150,8 @@ function setupWebGL() {
 	a_Position = gl.getAttribLocation(gl.program, "a_Position");
 	if (a_Position < 0) throw new Error("Failed to get the storage location of a_Position.");
 
-	a_Normal = gl.getAttribLocation(gl.program, "a_Normal");
-	if (a_Normal < 0) throw new Error("Failed to get the storage location of a_Normal.");
-
-	a_UV = gl.getAttribLocation(gl.program, "a_UV");
-	if (a_UV < 0) throw new Error("Failed to get the storage location of a_UV.");
-
 	u_ModelMatrix = gl.getUniformLocation(gl.program, "u_ModelMatrix");
 	if (!u_ModelMatrix) throw new Error("Failed to get the storage location of u_ModelMatrix.");
-	gl.uniformMatrix4fv(u_ModelMatrix, false, new Matrix4().elements);	// identity matrix
 
 	u_ViewMatrix = gl.getUniformLocation(gl.program, "u_ViewMatrix");
 	if (!u_ViewMatrix) throw new Error("Failed to get the storage location of u_ViewMatrix.");
@@ -163,17 +159,25 @@ function setupWebGL() {
 	u_ProjectionMatrix = gl.getUniformLocation(gl.program, "u_ProjectionMatrix");
 	if (!u_ProjectionMatrix) throw new Error("Failed to get the storage location of u_ProjectionMatrix.");
 
-	u_LightPosition = gl.getUniformLocation(gl.program, "u_LightPosition");
-	if (!u_LightPosition) throw new Error("Failed to get the storage location of u_LightPosition.");
 
-	u_CameraPosition = gl.getUniformLocation(gl.program, "u_CameraPosition");
-	if (!u_CameraPosition) throw new Error("Failed to get the storage location of u_CameraPosition.");
+	a_Normal = gl.getAttribLocation(gl.program, "a_Normal");
+	if (a_Normal < 0) throw new Error("Failed to get the storage location of a_Normal.");
 
+	u_NormalMatrix = gl.getUniformLocation(gl.program, "u_NormalMatrix");
+	if (!u_NormalMatrix) throw new Error("Failed to get the storage location of u_NormalMatrix.");
+
+
+	a_UV = gl.getAttribLocation(gl.program, "a_UV");
+	if (a_UV < 0) throw new Error("Failed to get the storage location of a_UV.");
+
+	
 	u_Material = gl.getUniformLocation(gl.program, "u_Material");
 	if (!u_Material) throw new Error("Failed to get the storage location of u_Material.");
 
+
 	u_Color = gl.getUniformLocation(gl.program, "u_Color");
 	if (!u_Color) throw new Error("Failed to get the storage location of u_Color.");
+
 
 	u_Sampler0 = gl.getUniformLocation(gl.program, "u_Sampler0");
 	if (!u_Sampler0) throw new Error("Failed to get the storage location of u_Sampler0.");
@@ -181,11 +185,18 @@ function setupWebGL() {
 	u_Sampler1 = gl.getUniformLocation(gl.program, "u_Sampler1");
 	if (!u_Sampler1) throw new Error("Failed to get the storage location of u_Sampler1.");
 
+
 	u_LightingEnabled = gl.getUniformLocation(gl.program, "u_LightingEnabled");
 	if (!u_LightingEnabled) throw new Error("Failed to get the storage location of u_LightingEnabled.");
 
-	u_NormalMatrix = gl.getUniformLocation(gl.program, "u_NormalMatrix");
-	if (!u_NormalMatrix) throw new Error("Failed to get the storage location of u_NormalMatrix.");
+	u_LightPosition = gl.getUniformLocation(gl.program, "u_LightPosition");
+	if (!u_LightPosition) throw new Error("Failed to get the storage location of u_LightPosition.");
+
+	u_LightColor = gl.getUniformLocation(gl.program, "u_LightColor");
+	if (!u_LightColor) throw new Error("Failed to get the storage location of u_LightColor.");
+
+	u_CameraPosition = gl.getUniformLocation(gl.program, "u_CameraPosition");
+	if (!u_CameraPosition) throw new Error("Failed to get the storage location of u_CameraPosition.");
 }
 
 function initTextures() {
@@ -233,6 +244,16 @@ function initUI() {
 	});
 	document.getElementById("lightPos_Z").addEventListener("mousemove", function(e) {
 		if (e.buttons === 1) lightPos[2] = this.value;
+	});
+
+	document.getElementById("lightColor_R").addEventListener("mousemove", function(e) {
+		if (e.buttons === 1) lightColor[0] = this.value/100;
+	});
+	document.getElementById("lightColor_G").addEventListener("mousemove", function(e) {
+		if (e.buttons === 1) lightColor[1] = this.value/100;
+	});
+	document.getElementById("lightColor_B").addEventListener("mousemove", function(e) {
+		if (e.buttons === 1) lightColor[2] = this.value/100;
 	});
 }
 
@@ -345,6 +366,7 @@ function render() {
 
 	gl.uniform1i(u_LightingEnabled, lightingEnabled);
 	gl.uniform3f(u_LightPosition, ...lightPos);
+	gl.uniform3f(u_LightColor, ...lightColor);
 	gl.uniform3f(u_CameraPosition, ...camera.eye.elements);
 
 	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -364,7 +386,7 @@ function render() {
 		for (const bp of king.getBodyParts()) bp.material = 0;
 	}
 
-	const light = new Cube(0, [1,1,0,1]);
+	const light = new Cube(0, [...lightColor, 1]);
 	light.modelMatrix.translate(...lightPos);
 	light.modelMatrix.scale(-0.5, -0.5, -0.5);	// flip inside out so light inside illuminates the outside instead of inside faces
 	light.modelMatrix.translate(-0.5, -0.5, -0.5);
